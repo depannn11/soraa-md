@@ -1,0 +1,76 @@
+const path = require('path');
+const fs = require('fs');
+const config = require('../config.js');
+const print = require('../lib/print.js');
+
+module.exports = {
+  name: 'menubutton',
+  aliases: ['menubutton'],
+  category: 'main',
+  description: 'Menampilkan menu utama bot dengan tombol dinamis',
+  async execute(bot, msg) {
+    const chatId = msg.chat.id;
+    const mediaPath = path.join(__dirname, '../media/image.jpg');
+    const runtime = bot.runtime();
+    const time = bot.time();
+    const caption = `
+\`\`\`
+[${time}] Soraa MD
+───────────────
+NAME : ${config.botName}
+VERSION : ${config.botVersion}
+RUNTIME : ${runtime}
+───────────────
+SELECT BUTTON
+\`\`\`
+    `; 
+
+    const commands = bot.commands;
+    const categories = {};
+    const seenCommands = new Set();
+    commands.forEach(cmd => {
+      if (!cmd.category || cmd.category === 'owner' || seenCommands.has(cmd.name)) {
+        return;
+      }
+      if (!categories[cmd.category]) {
+        categories[cmd.category] = [];
+      }
+      categories[cmd.category].push(cmd);
+      seenCommands.add(cmd.name);
+    });
+
+    const inline_keyboard = [];
+    const sortedCategories = Object.keys(categories).sort();
+
+    for (const category of sortedCategories) {
+        const buttons = categories[category].map(cmd => ({
+            text: cmd.name.charAt(0).toUpperCase() + cmd.name.slice(1),
+            callback_data: cmd.name
+        }));
+
+        for (let i = 0; i < buttons.length; i += 2) {
+            inline_keyboard.push(buttons.slice(i, i + 2));
+        }
+    }
+
+    inline_keyboard.push(
+        [{ text: 'Channel', url: 'https://t.me/depstore11' }],
+        [{ text: 'Developer', url: 'https://t.me/depanncapee' }, { text: 'Github', url: 'https://github.com/depannn11' }]
+    );
+    const buttons = {
+      reply_markup: { inline_keyboard },
+      parse_mode: 'Markdown'
+    };
+
+    try {
+      if (fs.existsSync(mediaPath)) {
+        await bot.sendPhoto(chatId, mediaPath, { caption, ...buttons });
+      } else {
+        await bot.sendMessage(chatId, caption, buttons);
+      }
+    } catch (e) {
+      print.error(e, 'Menu Button Command');
+      await bot.sendMessage(chatId, caption, buttons);
+    }
+  }
+};
